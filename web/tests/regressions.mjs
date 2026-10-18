@@ -49,6 +49,10 @@ const waitUntil = async (fn) => {
 const quotePlans = new Map();
 const receiptGates = new Map();
 const failedHashes = new Set();
+const receiptErrorHashes = new Set();
+const receiptRequests = [];
+const transactions = new Map();
+const replacements = new Map();
 let holdReceipts = false, failNextWrite = false;
 let modelGate = null;
 let modelReply = "Noted, tea it is.\n<remember>\nPrefers green tea\n</remember>";
@@ -64,9 +68,10 @@ function rpc(req) {
   if (m === "eth_getLogs") return ok([]);
   if (m === "eth_estimateGas") return ok("0x30000");
   if (m === "eth_gasPrice" || m === "eth_maxPriorityFeePerGas") return ok("0x3b9aca00");
-  if (m === "eth_getBlockByNumber") return ok({ number: "0x1900a00", baseFeePerGas: "0x3b9aca00", timestamp: "0x6700000", hash: `0x${"ab".repeat(32)}`, transactions: [] });
+  if (m === "eth_getBlockByNumber") return ok({ number: "0x1900a00", baseFeePerGas: "0x3b9aca00", timestamp: "0x6700000", hash: `0x${"ab".repeat(32)}`, transactions: [...replacements.values()] });
+  if (m === "eth_getTransactionReceipt" && replacements.has(req.params[0])) return ok(null);
   if (m === "eth_getTransactionReceipt") return ok({ status: failedHashes.has(req.params[0]) ? "0x0" : "0x1", transactionHash: req.params[0], blockNumber: "0x1900a01", blockHash: `0x${"cd".repeat(32)}`, logs: [], gasUsed: "0x1", cumulativeGasUsed: "0x1", effectiveGasPrice: "0x1", from: acct.address, to: VAULT, contractAddress: null, transactionIndex: "0x0", logsBloom: `0x${"0".repeat(512)}`, type: "0x2" });
-  if (m === "eth_getTransactionByHash") return ok({ hash: req.params[0], blockNumber: "0x1900a01", from: acct.address, to: VAULT, input: "0x", value: "0x0", nonce: "0x0", gas: "0x1", type: "0x2", chainId: "0x1" });
+  if (m === "eth_getTransactionByHash") return ok(transactions.get(req.params[0]));
   if (m === "eth_call") {
     const { to, data } = req.params[0];
     const abi = abiAt[to.toLowerCase()];
@@ -117,8 +122,16 @@ for (const url of dep.network.rpcUrls) {
   await page.route(`${url}**`, async (route) => {
     const body = JSON.parse(route.request().postData() ?? "{}");
     const respond = async (req) => {
+      if (req.method === "eth_getTransactionReceipt") receiptRequests.push({ hash: req.params[0], url });
       if (req.method === "eth_getTransactionReceipt" && holdReceipts) {
-        const gate = deferred(); receiptGates.set(req.params[0], gate); await gate.promise; receiptGates.delete(req.params[0]);
+        const hash = req.params[0], gate = deferred();
+        const gates = receiptGates.get(hash) ?? new Set();
+        gates.add(gate); receiptGates.set(hash, gates);
+        await gate.promise;
+        gates.delete(gate); if (!gates.size) receiptGates.delete(hash);
+      }
+      if (req.method === "eth_getTransactionReceipt" && receiptErrorHashes.has(req.params[0])) {
+        return { jsonrpc: "2.0", id: req.id, error: { code: -32603, message: "temporary upstream failure during receipt polling" } };
       }
       if (req.method === "eth_call" && req.params[0].to.toLowerCase() === U.quoter) {
         const { args } = decodeFunctionData({ abi: quoter, data: req.params[0].data });
@@ -156,6 +169,7 @@ await page.exposeFunction("__wallet", async (method, params) => {
   if (method === "eth_sendTransaction") {
     sent.push(params[0]);
     const hash = keccak256(toHex(`tx${sent.length}`));
+    transactions.set(hash, { hash, blockNumber: "0x1900a01", from: acct.address, to: params[0].to, input: params[0].data, value: params[0].value ?? "0x0", nonce: toHex(sent.length - 1), gas: "0x30000", type: "0x2", chainId: "0x1" });
     if (failNextWrite && params[0].to.toLowerCase() === VAULT) { failedHashes.add(hash); failNextWrite = false; }
     return { result: hash };
   }
@@ -208,7 +222,7 @@ const nav = async (name) => {
   await page.waitForFunction((name) => document.querySelector('nav[aria-label="Sections"] [aria-current="page"]')?.textContent === name, name);
 };
 const pending = async (count) => { await waitUntil(() => sent.length === count && receiptGates.size > 0); };
-const releaseReceipts = () => { for (const gate of receiptGates.values()) gate.resolve(); };
+const releaseReceipts = () => { for (const gates of receiptGates.values()) for (const gate of gates) gate.resolve(); };
 const planQuote = (amount, out, side = false, error = false) => {
   const plan = { out: BigInt(out) * E18, error, started: deferred(), release: deferred() };
   quotePlans.set(`${side}:${BigInt(amount) * E18}`, plan); return plan;
@@ -222,6 +236,23 @@ const audit = async (name) => {
   const result = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"]).analyze();
   writeFileSync(join(shots, `axe-${name}.json`), JSON.stringify(result, null, 2));
   check(`automated accessibility audit on ${name}`, result.violations.length === 0, result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`).join(" | "));
+};
+const writtenTexts = async (transaction) => {
+  const { functionName, args } = decodeFunctionData({ abi: vaultAbi, data: transaction.data });
+  if (functionName !== "write") throw new Error("Expected a vault write");
+  const sig = await acct.signMessage({ message: `MNEMO vault key v1 for ${acct.address}` });
+  const key = hkdf(sha256, hexToBytes(sig), new TextEncoder().encode("MNEMO"), new TextEncoder().encode(`vault:${args[1]}`), 32);
+  return args[0].map((ciphertext) => {
+    const ct = hexToBytes(ciphertext);
+    return new TextDecoder().decode(xchacha20poly1305(key, ct.slice(1, 25)).decrypt(ct.slice(25)));
+  });
+};
+const propose = async (reply, notes) => {
+  modelReply = `${reply}\n<remember>\n${notes.join("\n")}\n</remember>`;
+  await page.getByLabel("Message", { exact: true }).fill(reply);
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await page.getByText(reply, { exact: true }).last().waitFor();
+  await page.waitForFunction((text) => document.querySelector('[aria-label="Proposal 1"]')?.value === text, notes[0]);
 };
 
 try {
@@ -290,10 +321,13 @@ try {
   releaseReceipts();
   await pending(before + 2);
   check("bug 4: Seal stays disabled through the write receipt", await page.getByRole("button", { name: "Sealing note…", exact: true }).isDisabled());
+  await page.getByLabel("New note").fill("A NEW UNSENT DRAFT typed during mining");
+  check("revision: the held vault write contains only the submitted draft", JSON.stringify(await writtenTexts(sent.at(-1))) === JSON.stringify(["Only seal this once"]));
   await screenshot("vault-pending-390");
   holdReceipts = false; releaseReceipts();
   await page.getByText("Seal 1 note: confirmed").waitFor();
   check("bug 4: only one write is sent for the click", sent.length === before + 2 && decodeFunctionData({ abi: vaultAbi, data: sent.at(-1).data }).functionName === "write");
+  check("revision: confirmation preserves a newer vault draft", await page.getByLabel("New note").inputValue() === "A NEW UNSENT DRAFT typed during mining");
 
   await nav("Trade");
   const old = planQuote(111, 1111), current = planQuote(222, 2222);
@@ -342,6 +376,112 @@ try {
   await page.getByRole("button", { name: "Seal 1 note", exact: true }).click();
   await page.getByText("Seal 1 note: confirmed").waitFor();
   check("bug 4: retry confirms and only then clears proposals", await page.getByLabel("Proposal 1", { exact: true }).count() === 0 && sent.length === chatBefore + 4);
+
+  await propose("Original proposal batch", ["Prefers green tea"]);
+  holdReceipts = true;
+  const newerBefore = sent.length;
+  await page.getByRole("button", { name: "Seal 1 note", exact: true }).click();
+  await pending(newerBefore + 1); releaseReceipts(); await pending(newerBefore + 2);
+  await propose("A later reply while sealing", ["Prefers green tea", "A newly proposed note that has never been sealed"]);
+  check("revision: chat stays usable while the original seal is pending", await page.getByLabel("Proposal 2", { exact: true }).inputValue() === "A newly proposed note that has never been sealed");
+  check("revision: the pending chat write contains only the original batch", JSON.stringify(await writtenTexts(sent.at(-1))) === JSON.stringify(["Prefers green tea"]));
+  await screenshot("new-proposals-pending-390");
+  holdReceipts = false; releaseReceipts();
+  await page.getByText("Seal 1 note: confirmed").waitFor();
+  check("revision: confirmation preserves later proposals, including identical text with a new identity", await page.locator('.proposal textarea').count() === 2 && await page.getByLabel("Proposal 2", { exact: true }).count() === 1);
+
+  await propose("Editable proposal batch", ["Seal only this original proposal", "Leave this unselected note"]);
+  await page.getByLabel("Keep proposal 2").uncheck();
+  holdReceipts = true;
+  const editBefore = sent.length;
+  await page.getByRole("button", { name: "Seal 1 note", exact: true }).click();
+  await pending(editBefore + 1); releaseReceipts(); await pending(editBefore + 2);
+  await page.getByLabel("Proposal 1", { exact: true }).fill("An edited proposal typed during mining");
+  holdReceipts = false; releaseReceipts();
+  await page.getByText("Seal 1 note: confirmed").waitFor();
+  check("revision: confirmation preserves an edited submitted proposal and an unselected proposal", await page.locator('.proposal textarea').count() === 2 && await page.getByLabel("Proposal 1", { exact: true }).inputValue() === "An edited proposal typed during mining");
+  check("revision: editing a pending proposal does not change its accepted ciphertext", JSON.stringify(await writtenTexts(sent.at(-1))) === JSON.stringify(["Seal only this original proposal"]));
+
+  await propose("Partially selected batch", ["This unchanged selection is sealed", "This unselected proposal stays"]);
+  await page.getByLabel("Keep proposal 2").uncheck();
+  await page.getByRole("button", { name: "Seal 1 note", exact: true }).click();
+  await page.getByText("Seal 1 note: confirmed").waitFor();
+  check("revision: confirmation removes only the unchanged submitted selection", await page.locator('.proposal textarea').count() === 1 && await page.getByLabel("Proposal 1", { exact: true }).inputValue() === "This unselected proposal stays" && !(await page.getByLabel("Keep proposal 1").isChecked()));
+
+  await nav("Vault");
+  await page.getByLabel("New note").fill("Do not duplicate a pending seal");
+  holdReceipts = true;
+  const rpcBefore = sent.length;
+  await page.getByRole("button", { name: /Seal note/ }).click();
+  await pending(rpcBefore + 1); releaseReceipts(); await pending(rpcBefore + 2);
+  const acceptedHash = keccak256(toHex(`tx${rpcBefore + 2}`));
+  receiptErrorHashes.add(acceptedHash);
+  holdReceipts = false; releaseReceipts();
+  await page.waitForFunction(() => document.querySelector(".tx-error") || document.querySelector(".tx-pending")?.textContent.includes("confirmation unavailable"));
+  const stillPending = await page.locator(".tx-pending").count() === 1;
+  check("revision: receipt RPC errors keep the accepted write pending", stillPending);
+  check("revision: both configured RPCs are exercised during receipt failure", dep.network.rpcUrls.every((url) => receiptRequests.some((r) => r.hash === acceptedHash && r.url === url)));
+  check("revision: the accepted hash stays visible after receipt errors", await page.locator(`.tx a[href$="${acceptedHash}"]`).count() === 1);
+  check("revision: Seal stays disabled when the receipt outcome is unknown", await page.locator('form:has(#new-note) button[type="submit"]').isDisabled());
+  await screenshot("receipt-rpc-error-390");
+  await nav("Chat");
+  await page.getByLabel("Keep proposal 1").check();
+  check("revision: an unknown receipt retains the shared seal lock and hash across navigation", await page.getByRole("button", { name: "Sealing notes…", exact: true }).isDisabled() && await page.locator(`.tx a[href$="${acceptedHash}"]`).count() === 1);
+  await nav("Vault");
+  await page.getByLabel("New note").fill("Do not duplicate a pending seal");
+  await page.getByLabel("New note").evaluate((field) => { for (let i = 0; i < 3; i++) field.form.requestSubmit(); });
+  await page.waitForTimeout(300);
+  check("revision: forced resubmissions after receipt errors cannot send another approval or write", sent.length === rpcBefore + 2, `${sent.length - rpcBefore} wallet transactions, expected 2`);
+  receiptErrorHashes.delete(acceptedHash);
+  if (stillPending) {
+    holdReceipts = true;
+    await pending(rpcBefore + 2);
+    check("revision: recovery retries only the accepted hash", [...receiptGates.keys()].every((hash) => hash === acceptedHash));
+    holdReceipts = false; releaseReceipts();
+    await page.getByText("Seal 1 note: confirmed").waitFor();
+    check("revision: recovery confirms the original write with no new wallet request", sent.length === rpcBefore + 2 && await page.locator(`.tx-done a[href$="${acceptedHash}"]`).count() === 1);
+  } else {
+    check("revision: recovery retries the accepted hash until its receipt resolves", false);
+  }
+
+  for (const kind of ["repriced", "cancelled", "replaced"]) {
+    const text = `Resolve this ${kind} seal`;
+    await page.getByLabel("New note").fill(text);
+    holdReceipts = true;
+    const replacementBefore = sent.length;
+    await page.getByRole("button", { name: /Seal note/ }).click();
+    await pending(replacementBefore + 1); releaseReceipts(); await pending(replacementBefore + 2);
+    const originalHash = keccak256(toHex(`tx${replacementBefore + 2}`));
+    const replacementHash = keccak256(toHex(`${originalHash}:${kind}`));
+    const replacement = { ...transactions.get(originalHash), hash: replacementHash };
+    if (kind !== "repriced") Object.assign(replacement, { to: acct.address, input: "0x", value: kind === "cancelled" ? "0x0" : "0x1" });
+    replacements.set(originalHash, replacement);
+    transactions.set(replacementHash, replacement);
+    holdReceipts = false; releaseReceipts();
+    await page.locator(kind === "repriced" ? ".tx-done" : ".tx-error").waitFor();
+    check(`revision: ${kind} transaction resolves with its replacement hash and no resubmission`, await page.locator(`.tx a[href$="${replacementHash}"]`).count() === 1 && sent.length === replacementBefore + 2);
+    check(`revision: ${kind} receipt ${kind === "repriced" ? "clears the sealed draft" : "preserves the unsealed draft and releases Seal"}`, kind === "repriced" ? await page.getByLabel("New note").inputValue() === "" : await page.getByLabel("New note").inputValue() === text && await page.getByRole("button", { name: /Seal note/ }).isEnabled());
+    replacements.delete(originalHash);
+  }
+
+  // Exercise a real receipt-wait timeout by advancing browser time, without a minute-long wait.
+  await page.clock.install();
+  await page.getByLabel("New note").fill("One approval even when its receipt times out");
+  holdReceipts = true;
+  const timeoutBefore = sent.length;
+  await page.getByRole("button", { name: /Seal note/ }).click();
+  await pending(timeoutBefore + 1);
+  const approvalHash = keccak256(toHex(`tx${timeoutBefore + 1}`));
+  await page.clock.fastForward(60_001);
+  await page.waitForFunction(() => document.querySelector(".tx-pending")?.textContent.includes("confirmation unavailable"));
+  check("revision: an approval receipt timeout keeps its hash visible and Seal locked", await page.locator(`.tx-pending a[href$="${approvalHash}"]`).count() === 1 && await page.getByRole("button", { name: "Sealing note…", exact: true }).isDisabled());
+  await page.getByLabel("New note").evaluate((field) => field.form.requestSubmit());
+  check("revision: a receipt timeout cannot restart approval or send the write early", sent.length === timeoutBefore + 1);
+  holdReceipts = false; releaseReceipts();
+  await page.clock.fastForward(3001);
+  await page.getByText("Seal 1 note: confirmed").waitFor();
+  check("revision: timeout recovery completes the original approval/write flow exactly once", sent.length === timeoutBefore + 2 && receiptRequests.filter((r) => r.hash === approvalHash).length >= 2);
+  await nav("Chat");
 
   modelGate = { started: deferred(), release: deferred() };
   modelReply = "A reply that arrived while you were away.\n<remember>\nKeeps long walks for thinking\n</remember>";

@@ -49,11 +49,13 @@ PLAYWRIGHT_BROWSERS_PATH=/tmp/mnemo-check-browsers IMD_PLAYWRIGHT=/tmp/mnemo-che
 
 Run those commands from the repository root. On a system with browser libraries installed, add `MNEMO_BROWSER=webkit` to run the same flows in WebKit. `MNEMO_AXE` is optional and adds five WCAG A/AA scans. The scripts manage a bounded local server and browser, then close them; screenshots and reports go to `test/scratch/` and are not submission assets.
 
-The regression checks cover retained conversation/draft/proposals/key, replies received while away, opening a vault within Chat, credential isolation and opt-out, reversed quote responses and stale failures, repeated Seal submissions, approval/write receipt locks, failed receipt and retry, hash-safe keyboard skipping, local unsealing, copying, FAQ disclosure, reduced motion and all four routes at 320/390/500/1440px.
+The regression checks cover retained conversation/draft/proposals/key, replies received while away, opening a vault within Chat, credential isolation and opt-out, reversed quote responses and stale failures, repeated Seal submissions, approval/write receipt locks, failed receipt and retry, hash-safe keyboard skipping, local unsealing, copying, FAQ disclosure, reduced motion and all four routes at 320/390/500/1440px. They also cover post-broadcast receipt RPC errors, same-hash recovery, receipt timeouts using advanced browser time, replacement/cancellation/repricing, and preservation of newer drafts and proposals while an earlier seal confirms.
 
 Final commands, counts, limitations and review coverage are in [docs/review/validation.md](docs/review/validation.md). The implemented tokens, components and responsive behavior are documented in [DESIGN.md](DESIGN.md).
 
-Local validation: production build and typecheck passed; 9 unit tests and 103 contract tests passed; Chromium and WebKit each passed 33 original plus 74 regression/accessibility checks. All routes were checked at 320, 390, 500 and 1440px. The design probe passed 15/16 checks, retaining the established monospaced prose. The live publisher is not configured, so no hosted update is claimed.
+Revision validation: production build and typecheck passed; 9 unit tests and 103 contract tests passed; the 33 original browser checks pass in Chromium and WebKit, and each engine passes all 99 expanded regression/accessibility checks. All routes were checked at 320, 390, 500 and 1440px. The design probe passed 15/16 checks, retaining the established monospaced prose. Both reopened findings were reproduced before fixing them; [revision results and limitations](docs/review/revision-validation.md) include the baseline failures. The live publisher returned “not configured” and hosted verification returned “fetch failed,” so no hosted update is claimed.
+
+After broadcast, receipt RPC errors and timeouts keep Seal disabled and the transaction link visible while that same hash is checked again. Keep the tab open until the outcome is known. A confirmed seal clears only unchanged submitted content; newer drafts, edited proposals, later replies and unselected proposals remain.
 
 ## Chat privacy and keys
 

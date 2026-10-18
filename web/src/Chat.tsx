@@ -124,7 +124,10 @@ export function Chat() {
                   className="btn btn-primary"
                   disabled={chosen.length === 0 || v.sealing || !chainOk}
                   onClick={async () => {
-                    if (await v.seal(chosen.map((c) => c.text))) setProposals([]);
+                    // Immutable proposal objects identify the submitted versions. Later
+                    // replies, edits and unselected proposals must survive confirmation.
+                    const submitted = new Set(chosen);
+                    if (await v.seal(chosen.map((c) => c.text))) setProposals((current) => current.filter((p) => !submitted.has(p)));
                   }}
                 >
                   {v.sealing ? "Sealing notes…" : `Seal ${chosen.length} note${chosen.length === 1 ? "" : "s"}`}

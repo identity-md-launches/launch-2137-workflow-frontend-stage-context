@@ -1,5 +1,7 @@
 # MNEMO validation and design review
 
+The reopened transaction findings and this revision's current results are in [revision-validation.md](revision-validation.md). Both reports were reproduced and fixed. The record below describes the preceding accepted implementation; the revision record supersedes its test counts, export bytes and transaction-outcome coverage.
+
 ## Scope and outcome
 
 The web app fixes the five reported bugs and implements the complete home story in the requested order. The existing contracts, addresses, ABI exports, hash routes, wallet connectors, transaction encoding and note/key encryption formats are preserved. The 40-line downloadable agent script has only three explanatory comments added to its existing 37 lines.

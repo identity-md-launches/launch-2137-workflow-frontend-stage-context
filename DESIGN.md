@@ -58,13 +58,13 @@ Controls, panels and fields have square corners. Capsule outlines, small dots an
 
 | Component/pattern | Source | Behavior and reuse |
 | --- | --- | --- |
-| `Hero`, `VaultPanel` | `web/src/Home.tsx` | Existing open/connect/switch/chat action, editable notes, stamp and balance. Seal controls share the vault's pending lock. |
+| `Hero`, `VaultPanel` | `web/src/Home.tsx` | Existing open/connect/switch/chat action, editable notes, stamp and balance. Seal controls share the vault's pending lock. Confirmation clears only a draft still equal to the submitted text. |
 | `Capsule` | `web/src/Capsule.tsx` | Dots gather for 4.2 seconds, then stop. Opening the vault snaps them into place in 420ms and adds an orange seal. Changes to reduced-motion preference render a static state. |
 | Story sections | `web/src/Story.tsx` | `.story`, `.section-intro`, step drawings, model list, boundary table and agent script follow the same alignment and spacing. |
 | `SampleNote` | `web/src/Story.tsx` | An explicitly marked local example uses the existing note encryption/decryption functions with a fresh in-memory sample key. The unseal button becomes a disabled confirmation. No wallet or transaction. |
 | `CopyButton` | `web/src/ui.tsx` | Copies exact script/address text; displays Copied, announces status, or shows a selectable-text fallback instruction on failure. |
-| `TxStatus` | `web/src/ui.tsx` | Stable polite status region for checking, wallet, pending, confirmed and failed states, with explorer links when available. Chat keeps it outside the proposal list so confirmation remains visible. |
-| Chat settings/session | `web/src/chat-state.tsx`, `web/src/Chat.tsx` | State survives hash-route changes. Provider/endpoint changes clear the active key. Remembered keys are scoped by provider and origin, with explicit restore after a change. Conversations and drafts stay in tab memory. |
+| `TxStatus` | `web/src/ui.tsx`, `web/src/context.tsx` | Stable polite status region for checking, wallet, pending, confirmed and failed states, with explorer links when available. Receipt errors/timeouts stay pending, retain the hash/link and explain that confirmation is unavailable while the same transaction is checked again. Mined reverts, cancellations and replacements resolve explicitly. Chat keeps the region outside proposals so it remains visible. |
+| Chat settings/session | `web/src/chat-state.tsx`, `web/src/Chat.tsx` | State survives hash-route changes. Provider/endpoint changes clear the active key. Remembered keys are scoped by provider and origin, with explicit restore after a change. Conversations and drafts stay in tab memory. A confirmed seal removes only unchanged submitted proposal versions, preserving edits, later replies and unselected proposals. |
 | `ConnectSheet` | `web/src/ConnectSheet.tsx` | Existing wallet options and connection behavior. Modal background is inert, Tab/Shift+Tab wrap inside, Escape/backdrop/close dismiss, and focus returns to the triggering control. |
 | Navigation/skip | `web/src/App.tsx` | Existing four hash routes; current page has an underline. Skip focuses and scrolls the current main without modifying the hash. |
 | FAQ | `web/src/Home.tsx` | Native details/summary with its visible native marker, 44px minimum target and keyboard interaction. |
@@ -77,7 +77,8 @@ Buttons have rest, hover, pressed, focus and disabled styles. Keyboard focus is 
 - Start a new route with the existing `main`, `.panel`/`.stack` patterns and the current token scale. Use `.story` for explanatory home sections.
 - Use a native link for routes and a button for actions. Keep the skip link outside hash routing.
 - Keep API credentials out of component-local route state and out of URLs. Use the scoped session provider; opting out removes saved keys.
-- Reuse the shared vault seal operation and its full-flow lock. Do not release it between approval and write, or before a receipt/failure.
+- Reuse the shared vault seal operation and its full-flow lock. Release it only after a known transaction outcome or a failure before broadcast. Receipt transport errors and timeouts keep it held while the accepted hash is checked again.
+- Capture the content submitted by an asynchronous action. Its completion may clear only that unchanged content, preserving later drafts, edits and proposals.
 - Preserve visible costs, full accessible addresses, empty states and errors. Avoid clipping important content to make a narrow layout fit.
 - Keep the existing deployed configuration, ABIs, routes and crypto functions as the source of truth.
 

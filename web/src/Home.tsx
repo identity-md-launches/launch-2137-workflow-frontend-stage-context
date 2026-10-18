@@ -102,7 +102,8 @@ export function VaultPanel() {
         className="stack"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (await v.seal([draft])) setDraft("");
+          const submitted = draft;
+          if (await v.seal([submitted])) setDraft((current) => current === submitted ? "" : current);
         }}
       >
         <label htmlFor="new-note">New note</label>

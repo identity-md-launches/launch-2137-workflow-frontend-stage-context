@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 import { useAccount, useConfig } from "wagmi";
-import { simulateContract, waitForTransactionReceipt, writeContract } from "wagmi/actions";
+import { simulateContract, writeContract } from "wagmi/actions";
 import type { Abi, Address, Hex, PublicClient } from "viem";
 import type { Deployment } from "./config";
 import { reason } from "./chain";
@@ -75,33 +75,68 @@ export type Call = { address: Address; abi: Abi; functionName: string; args?: re
 /** Simulate, ask the wallet, wait for the receipt; each step is visible in `state`. */
 export function useTx() {
   const config = useConfig();
-  const { bump } = useApp();
+  const { bump, client } = useApp();
   const { address } = useAccount();
   const [state, setState] = useState<TxState>({ kind: "idle", text: "" });
+  const active = useRef(false);
   const send = useCallback(
     async (label: string, call: Call): Promise<boolean> => {
+      if (active.current) return false;
       if (!address) {
         setState({ kind: "error", text: "Connect a wallet first." });
         return false;
       }
+      active.current = true;
       try {
         setState({ kind: "wallet", text: `${label}: checking the call` });
         const { request } = await simulateContract(config, { ...call, account: address } as never);
         setState({ kind: "wallet", text: `${label}: confirm in your wallet` });
-        const hash = await writeContract(config, request as never);
+        let hash = await writeContract(config, request as never);
         setState({ kind: "pending", text: `${label}: waiting for the block`, hash });
-        const receipt = await waitForTransactionReceipt(config, { hash });
-        if (receipt.status !== "success") throw new Error(`${label} reverted on chain.`);
-        setState({ kind: "done", text: `${label}: confirmed`, hash });
-        bump();
-        return true;
+        for (;;) {
+          let receipt;
+          let replacement: "repriced" | "replaced" | "cancelled" | undefined;
+          try {
+            // Read the raw receipt: wagmi's wrapper throws on a reverted receipt too.
+            // Only a receipt (including a mined replacement) establishes the outcome.
+            receipt = await client.waitForTransactionReceipt({
+              hash,
+              timeout: 60_000,
+              onReplaced: ({ reason, transactionReceipt }) => {
+                hash = transactionReceipt.transactionHash;
+                replacement = reason;
+              },
+            });
+          } catch {
+            // A timeout or RPC failure says nothing about a broadcast transaction.
+            // Keep send() unresolved so the full approval/write seal lock stays held.
+            setState({ kind: "pending", text: `${label}: confirmation unavailable; still checking this transaction. Keep this tab open.`, hash });
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            continue;
+          }
+          hash = receipt.transactionHash;
+          if (replacement === "cancelled" || replacement === "replaced") {
+            setState({ kind: "error", text: `${label}: ${replacement === "cancelled" ? "cancelled" : "replaced by a different transaction"} in your wallet.`, hash });
+            bump();
+            return false;
+          }
+          if (receipt.status !== "success") {
+            setState({ kind: "error", text: `${label}: reverted on chain.`, hash });
+            return false;
+          }
+          setState({ kind: "done", text: `${label}: confirmed`, hash });
+          bump();
+          return true;
+        }
       } catch (e) {
         const message = reason(e);
         setState({ kind: "error", text: `${label}: ${message === "unknown reason" ? "Transaction failed. Check your wallet and try again." : message}` });
         return false;
+      } finally {
+        active.current = false;
       }
     },
-    [address, config, bump],
+    [address, config, bump, client],
   );
   const fail = useCallback((text: string) => setState({ kind: "error", text }), []);
   const reset = useCallback(() => setState({ kind: "idle", text: "" }), []);

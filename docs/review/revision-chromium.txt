@@ -1,0 +1,100 @@
+PASS home story has the requested section order
+PASS product and main action fit the first 390px screen
+PASS sample decrypts locally into real words
+PASS sample requires no wallet or transaction
+PASS automated accessibility audit on unsealed-sample
+PASS copy button copies the exact 40-line downloadable agent script
+PASS footer copies the verified contract address
+PASS questions expand with useful answers
+PASS wallet dialog traps forward keyboard focus
+PASS wallet dialog traps backward keyboard focus
+PASS wallet dialog restores focus to the connect trigger
+PASS bug 1: conversation survives route navigation
+PASS bug 1: unsent draft survives navigation
+PASS bug 1: edited proposal and its selection survive navigation
+PASS bug 1: unremembered API key survives navigation in memory
+PASS bug 1: vault opens in chat with exactly one signature
+PASS bug 1: opening the vault preserves the draft and proposals
+PASS bug 4: one approval after repeated same-tick submissions
+PASS bug 4: Seal is disabled during the approval receipt
+PASS bug 4: Seal stays disabled through the write receipt
+PASS revision: the held vault write contains only the submitted draft
+PASS bug 4: only one write is sent for the click
+PASS revision: confirmation preserves a newer vault draft
+PASS bug 3: changing input immediately clears the previous minimum
+PASS bug 3: a late old success cannot overwrite the current minimum
+PASS bug 3: a stale failed request cannot replace current quote state
+PASS bug 3: changing buy/sell rejects the previous direction's response
+PASS bug 3: clearing the amount immediately removes the minimum
+PASS bug 4: chat Seal disables during approval
+PASS bug 4: the seal lock survives navigation and disables the other Seal
+PASS bug 4: chat Seal remains disabled until the write receipt
+PASS bug 4: failed receipt is reported as a transaction failure (Seal 1 note: reverted on chain. View transaction)
+PASS bug 4: a failed receipt re-enables Seal and preserves proposals
+PASS bug 4: navigating and submitting while pending sends no duplicate
+PASS bug 4: retry confirms and only then clears proposals
+PASS revision: chat stays usable while the original seal is pending
+PASS revision: the pending chat write contains only the original batch
+PASS revision: confirmation preserves later proposals, including identical text with a new identity
+PASS revision: confirmation preserves an edited submitted proposal and an unselected proposal
+PASS revision: editing a pending proposal does not change its accepted ciphertext
+PASS revision: confirmation removes only the unchanged submitted selection
+PASS revision: receipt RPC errors keep the accepted write pending
+PASS revision: both configured RPCs are exercised during receipt failure
+PASS revision: the accepted hash stays visible after receipt errors
+PASS revision: Seal stays disabled when the receipt outcome is unknown
+PASS revision: an unknown receipt retains the shared seal lock and hash across navigation
+PASS revision: forced resubmissions after receipt errors cannot send another approval or write (2 wallet transactions, expected 2)
+PASS revision: recovery retries only the accepted hash
+PASS revision: recovery confirms the original write with no new wallet request
+PASS revision: repriced transaction resolves with its replacement hash and no resubmission
+PASS revision: repriced receipt clears the sealed draft
+PASS revision: cancelled transaction resolves with its replacement hash and no resubmission
+PASS revision: cancelled receipt preserves the unsealed draft and releases Seal
+PASS revision: replaced transaction resolves with its replacement hash and no resubmission
+PASS revision: replaced receipt preserves the unsealed draft and releases Seal
+PASS revision: an approval receipt timeout keeps its hash visible and Seal locked
+PASS revision: a receipt timeout cannot restart approval or send the write early
+PASS revision: timeout recovery completes the original approval/write flow exactly once
+PASS bug 1: replies and proposals received away from chat are retained
+PASS bug 2: changing provider clears the active key
+PASS bug 2: a required missing key prevents a request to another provider
+PASS bug 2: the new provider receives only its own key
+PASS bug 2: changing endpoint origin clears the key
+PASS bug 2: the old origin's key never reaches the new origin
+PASS bug 2: remembered keys are stored separately per provider and origin
+PASS bug 2: returning to a saved origin still clears the active key
+PASS bug 2: explicit restore loads only the matching origin's key
+PASS bug 2: changing a path on the same origin also clears the active key
+PASS bug 2: two provider modes on one origin do not inherit each other's key
+PASS bug 2: reload restores only the remembered provider's own key
+PASS conversation and proposals are tab-memory only, never persisted to storage
+PASS bug 2: opting out removes every saved provider key
+PASS bug 5: skip link focuses main on Vault without changing the hash
+PASS bug 5: skip link focuses main on Chat without changing the hash
+PASS bug 5: skip link focuses main on Agents without changing the hash
+PASS bug 5: skip link focuses main on Trade without changing the hash
+PASS no horizontal scroll at 320px on Vault
+PASS no horizontal scroll at 320px on Chat
+PASS no horizontal scroll at 320px on Agents
+PASS no horizontal scroll at 320px on Trade
+PASS no horizontal scroll at 390px on Vault
+PASS automated accessibility audit on vault
+PASS no horizontal scroll at 390px on Chat
+PASS automated accessibility audit on chat
+PASS no horizontal scroll at 390px on Agents
+PASS automated accessibility audit on agents
+PASS no horizontal scroll at 390px on Trade
+PASS automated accessibility audit on trade
+PASS no horizontal scroll at 500px on Vault
+PASS no horizontal scroll at 500px on Chat
+PASS no horizontal scroll at 500px on Agents
+PASS no horizontal scroll at 500px on Trade
+PASS no horizontal scroll at 1440px on Vault
+PASS no horizontal scroll at 1440px on Chat
+PASS no horizontal scroll at 1440px on Agents
+PASS no horizontal scroll at 1440px on Trade
+PASS reduced motion renders a static capsule
+PASS reduced motion shows sample words without animation
+PASS no script errors in the production export
+99/99 passed (chromium)
