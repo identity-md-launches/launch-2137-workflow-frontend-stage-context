@@ -23,6 +23,17 @@ export function TxStatus({ state }: { state: TxState }) {
 
 const GLYPHS = "0123456789abcdef";
 
+export function CopyButton({ text, label, name }: { text: string; label: string; name?: string }) {
+  const [state, setState] = useState<"idle" | "done" | "error">("idle");
+  return <span className="copy-control">
+    <button className="btn btn-sm" aria-label={name && state === "done" ? `${name}, copied` : name} onClick={async () => {
+      try { await navigator.clipboard.writeText(text); setState("done"); }
+      catch { setState("error"); }
+    }}>{state === "done" ? "Copied" : label}</button>
+    <span className={state === "error" ? "note-err" : "sr-only"} role="status">{state === "done" ? `${name ?? label}: copied to clipboard.` : state === "error" ? "Copy unavailable. Select and copy the text." : ""}</span>
+  </span>;
+}
+
 /** Ciphertext that unscrambles into the note's words once, when the vault opens. */
 export function Unscramble({ text, from }: { text: string; from: string }) {
   const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;

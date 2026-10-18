@@ -28,20 +28,20 @@
       "sha256": "8ed70c69a64b189cbff2f4e45f81daf98b5df080df6fe0c2a52676754dcbf514"
     },
     {
-      "path": "assets/ccip-DyJ3ljiT.js",
-      "sha256": "095a2e2c9aa4d9e8d2a354689d7f357119f1a6037f9813e613ddfb41845f4a86"
+      "path": "assets/ccip-C6GRZXA6.js",
+      "sha256": "ba3f3ae45565d500415ee875b0833f4ef138c342d139e9cc35d6c1a33b6e3b5a"
     },
     {
-      "path": "assets/dist-CbXiz8hU.js",
-      "sha256": "228e66760c8a0456f7ef1fe2f2403c0545d221b8c3504db398cbb17b72793d81"
+      "path": "assets/dist-CEjfbvFk.js",
+      "sha256": "521a1fc85f3072e8f6352fe905c07950a1f2d0777f5e4d4ed47a8f138403b536"
     },
     {
-      "path": "assets/index-DYl9737a.js",
-      "sha256": "5b0590d3ed5977c2481f8b51d7225bf8de26d78dcf625c2cbb9a9f859c4bf831"
+      "path": "assets/index-CvUC1uiw.css",
+      "sha256": "2ffb4a3df418bacc0c4e0d044324b1c83bc079d90e1444df30761794aada48ff"
     },
     {
-      "path": "assets/index-nmetaLUq.css",
-      "sha256": "ff3580e27300ed072d6225f7ebdfb2acf84dbc60addb8f3089ae525e33216fab"
+      "path": "assets/index-DpESZ_ms.js",
+      "sha256": "512cc412f08c2f94ccad42d29d06281d19eb544e2d241b891d37bb4093d51376"
     },
     {
       "path": "assets/newsreader-latin-600-normal-30OJ_TG_.woff2",
@@ -73,7 +73,7 @@
     },
     {
       "path": "index.html",
-      "sha256": "f704c92fbe7a64a188f25accbc65e6da9fecea2f1cadeeacb483c8071da1caf8"
+      "sha256": "058f880d6c928067e3005914a66acbe7377331f4335d8875f65770891b53dc1a"
     },
     {
       "path": "llms.txt",
@@ -81,7 +81,7 @@
     },
     {
       "path": "mnemo-agent.mjs",
-      "sha256": "a09e0724831358e50f741bc979ddc11b68e660cb9326ae2cdeaceedc4df2002b"
+      "sha256": "09cd6ae2c24ee255631721bbbc878252fcee4097aecd0940047ed012e4325f3c"
     },
     {
       "path": "og.png",

@@ -2,7 +2,7 @@
  * The open vault: the signature that derives every epoch's key (kept in memory only), the
  * caller's decrypted notes, and the vault's write actions.
  */
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useConfig } from "wagmi";
 import { signMessage } from "wagmi/actions";
 import { formatUnits, recoverMessageAddress, type Address, type Hex } from "viem";
@@ -26,6 +26,7 @@ type VaultCtx = {
   reload: () => Promise<void>;
   tx: ReturnType<typeof useTx>;
   seal: (texts: string[]) => Promise<boolean>;
+  sealing: boolean;
   forget: (ids: bigint[]) => Promise<boolean>;
   rotate: () => Promise<boolean>;
   edit: (id: bigint, text: string) => Promise<boolean>;
@@ -51,6 +52,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
   const [reads, setReads] = useState<Reads>(null);
+  const sealLock = useRef(false);
+  const [sealing, setSealing] = useState(false);
 
   // A vault belongs to one address: switching accounts closes it and forgets the signature.
   useEffect(() => {
@@ -128,6 +131,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
   const seal = useCallback(
     async (texts: string[]) => {
+      // The ref closes the same-event double-click gap; state disables every Seal control.
+      if (sealLock.current || tx.state.kind === "wallet" || tx.state.kind === "pending") return false;
       const clean = texts.map((t) => t.trim()).filter(Boolean);
       const k = key();
       if (!k || !reads) {
@@ -150,21 +155,29 @@ export function VaultProvider({ children }: { children: ReactNode }) {
         tx.fail(`Sealing costs ${fmt(cost)} MNEMO and this wallet holds ${fmt(reads.balance)}. Buy MNEMO on the Trade tab.`);
         return false;
       }
-      if (reads.allowance < cost) {
-        const ok = await tx.send(`Allow the vault to burn ${fmt(cost)} MNEMO`, {
-          address: d.token.address,
-          abi: ERC20_ABI,
-          functionName: "approve",
-          args: [d.vault.address, cost],
+      sealLock.current = true;
+      setSealing(true);
+      try {
+        if (reads.allowance < cost) {
+          const ok = await tx.send(`Allow the vault to burn ${fmt(cost)} MNEMO`, {
+            address: d.token.address,
+            abi: ERC20_ABI,
+            functionName: "approve",
+            args: [d.vault.address, cost],
+          });
+          if (!ok) return false;
+        }
+        return await tx.send(`Seal ${clean.length} note${clean.length === 1 ? "" : "s"}`, {
+          address: d.vault.address,
+          abi: d.vault.abi,
+          functionName: "write",
+          args: [sealed, reads.epoch],
         });
-        if (!ok) return false;
+      } finally {
+        // Approval and write are one flow. Release only after a receipt or a failure.
+        sealLock.current = false;
+        setSealing(false);
       }
-      return tx.send(`Seal ${clean.length} note${clean.length === 1 ? "" : "s"}`, {
-        address: d.vault.address,
-        abi: d.vault.abi,
-        functionName: "write",
-        args: [sealed, reads.epoch],
-      });
     },
     [key, reads, tx, d],
   );
@@ -208,7 +221,7 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   }, [loadReads, loadNotes, sig]);
 
   return (
-    <Ctx.Provider value={{ status, error, notes, reads, open, close, key, reload, tx, seal, forget, rotate, edit, exportJson }}>{children}</Ctx.Provider>
+    <Ctx.Provider value={{ status, error, notes, reads, open, close, key, reload, tx, seal, sealing, forget, rotate, edit, exportJson }}>{children}</Ctx.Provider>
   );
 }
 

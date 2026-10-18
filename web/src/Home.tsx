@@ -111,8 +111,8 @@ export function VaultPanel() {
           <span className={`hint num ${bytes > MAX_PLAINTEXT_BYTES ? "over" : ""}`}>
             {bytes} / {MAX_PLAINTEXT_BYTES} bytes
           </span>
-          <button className="btn btn-primary" type="submit" disabled={!draft.trim() || v.tx.state.kind === "wallet" || v.tx.state.kind === "pending"}>
-            Seal note{r ? ` · ${fmt(r.stamp)} MNEMO` : ""}
+          <button className="btn btn-primary" type="submit" disabled={!draft.trim() || v.sealing || v.tx.state.kind === "wallet" || v.tx.state.kind === "pending"}>
+            {v.sealing ? "Sealing note…" : `Seal note${r ? ` · ${fmt(r.stamp)} MNEMO` : ""}`}
           </button>
         </div>
       </form>
@@ -161,6 +161,7 @@ function NoteRow({
           <div className="row-actions">
             <button
               className="btn btn-primary"
+              disabled={v.sealing || v.tx.state.kind === "wallet" || v.tx.state.kind === "pending"}
               onClick={async () => {
                 if (await v.edit(n.id, editing.text)) setEditing(null);
               }}
@@ -325,6 +326,8 @@ export function Faq() {
     ["What do forget and rotate do?", "Forget marks a note as gone so the site stops loading it, but the old ciphertext stays on chain. Rotate moves your vault to a new key epoch: later notes are sealed under a new key, so an agent you revoked cannot read them."],
     ["Which wallets work?", "Ordinary wallets (EOAs) only. Your vault key is derived from a wallet signature, and smart contract wallets do not sign the same way twice."],
     ["What does a note cost?", "Every note you seal burns the current stamp in MNEMO, 2,000 at launch, sent to the burn address in the same transaction."],
+    ["What happens when I change models?", "Your conversation, draft and proposed notes stay in this tab as you move between pages. Changing providers or endpoints clears the active API key. If you choose Remember on this device, saved keys are kept separately for each provider and origin; you can explicitly load the matching key again."],
+    ["Can I try it without a wallet?", "Yes. Unseal the local sample above, or open Chat with your own model endpoint. A wallet is needed to open your vault and seal notes on Ethereum. Chat messages and prompts are never published on chain."],
   ];
   return (
     <section className="panel" aria-labelledby="faq-title">

@@ -13,7 +13,8 @@ import { hkdf } from "@noble/hashes/hkdf.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
 
-const { chromium } = await import(process.env.IMD_PLAYWRIGHT ?? "playwright");
+const browsers = await import(process.env.IMD_PLAYWRIGHT ?? "playwright");
+const engine = browsers[process.env.MNEMO_BROWSER ?? "chromium"];
 const dist = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "dist");
 const dep = JSON.parse(readFileSync(join(dist, "imd-deployment.json"), "utf8"));
 const at = (n) => dep.contracts.find((c) => c.name === n).address.toLowerCase();
@@ -77,7 +78,7 @@ const check = (name, cond, extra = "") => {
   if (!cond) failed = true;
 };
 
-const browser = await chromium.launch();
+const browser = await engine.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
@@ -246,4 +247,6 @@ try {
 }
 console.log(report.join("\n"));
 console.log(`${report.filter((r) => r.startsWith("PASS")).length}/${report.length} passed`);
-process.exit(failed ? 1 : 0);
+if (failed) process.exit(1);
+// Keep the original flows and run the navigation, credential, quote and seal regressions too.
+await import("./regressions.mjs");

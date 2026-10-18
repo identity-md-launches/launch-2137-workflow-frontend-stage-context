@@ -41,9 +41,17 @@ export function ConnectSheet() {
 
   useEffect(() => {
     if (!open) return;
+    const previous = document.activeElement as HTMLElement | null;
     reset();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
+      if (e.key === "Tab") {
+        const targets = sheet.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]');
+        if (!targets?.length) return;
+        const first = targets[0], last = targets[targets.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     };
     addEventListener("keydown", onKey);
     sheet.current?.querySelector<HTMLElement>("button, a")?.focus();
@@ -52,7 +60,8 @@ export function ConnectSheet() {
     return () => {
       removeEventListener("keydown", onKey);
       root?.removeAttribute("inert");
-      trigger.current?.focus();
+      if (previous?.isConnected) previous.focus();
+      else trigger.current?.focus();
     };
   }, [open, setOpen, reset]);
   useEffect(() => {

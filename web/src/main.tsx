@@ -9,6 +9,7 @@ import "./styles.css";
 import { loadDeployment, makePublicClient, makeWagmiConfig } from "./config";
 import { AppProvider } from "./context";
 import { VaultProvider } from "./vault";
+import { ChatProvider } from "./chat-state";
 import { App } from "./App";
 
 const root = createRoot(document.getElementById("root")!);
@@ -23,7 +24,9 @@ loadDeployment()
           <QueryClientProvider client={new QueryClient()}>
             <AppProvider d={d} client={client}>
               <VaultProvider>
-                <App />
+                <ChatProvider>
+                  <App />
+                </ChatProvider>
               </VaultProvider>
             </AppProvider>
           </QueryClientProvider>

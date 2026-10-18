@@ -1,135 +1,21 @@
-import { useEffect, useState } from "react";
-import { useApp } from "./context";
+import { useApp, useSwitchChain, useWallet } from "./context";
 import { fmt, useVault } from "./vault";
 import { TxStatus } from "./ui";
-
-/**
- * Chat goes straight from this browser to the provider the visitor picks. The site ships no
- * private or local addresses: a self-hosted or local model is reached at the address the visitor
- * types in.
- */
-type ProviderId = "anthropic" | "openai" | "compatible" | "local";
-const PROVIDERS: Record<ProviderId, { label: string; base: string; model: string; keyRequired: boolean }> = {
-  anthropic: { label: "Anthropic", base: "https://api.anthropic.com/v1", model: "claude-sonnet-5-5", keyRequired: true },
-  openai: { label: "OpenAI", base: "https://api.openai.com/v1", model: "gpt-4.1", keyRequired: true },
-  compatible: { label: "OpenAI-compatible endpoint", base: "", model: "", keyRequired: false },
-  local: { label: "Model on your computer", base: "", model: "", keyRequired: false },
-};
-
-type Msg = { role: "user" | "assistant"; content: string };
-const STORE = "mnemo.chat.v1";
-
-export function systemPrompt(memories: string[]) {
-  const known = memories.length ? memories.map((m) => `- ${m}`).join("\n") : "(nothing yet)";
-  return [
-    "You are a helpful assistant. The user keeps a private, encrypted memory that only they can open.",
-    `What you remember about the user:\n${known}`,
-    "After your answer, if the user said something worth remembering in later conversations, end with a block",
-    "<remember>\none short fact per line\n</remember>",
-    "Leave the block out when there is nothing new. Never repeat facts already remembered.",
-  ].join("\n\n");
-}
-
-/** Splits the reply into what to show and the notes the model proposes to remember. */
-export function splitReply(text: string): { reply: string; proposals: string[] } {
-  const m = text.match(/<remember>([\s\S]*?)<\/remember>/i);
-  if (!m) return { reply: text.trim(), proposals: [] };
-  const proposals = m[1]
-    .split("\n")
-    .map((l) => l.replace(/^[-*\s]+/, "").trim())
-    .filter(Boolean)
-    .slice(0, 16);
-  return { reply: text.replace(m[0], "").trim(), proposals };
-}
-
-export async function askModel(p: { provider: ProviderId; base: string; model: string; key: string; system: string; messages: Msg[] }): Promise<string> {
-  const base = p.base.replace(/\/+$/, "");
-  if (p.provider === "anthropic") {
-    const r = await fetch(`${base}/messages`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": p.key,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({ model: p.model, max_tokens: 1024, system: p.system, messages: p.messages }),
-    });
-    const j = await r.json().catch(() => null);
-    if (!r.ok) throw new Error(j?.error?.message ?? `The provider answered HTTP ${r.status}.`);
-    return (j.content ?? []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("");
-  }
-  const headers: Record<string, string> = { "content-type": "application/json" };
-  if (p.key) headers.authorization = `Bearer ${p.key}`;
-  const r = await fetch(`${base}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ model: p.model, messages: [{ role: "system", content: p.system }, ...p.messages] }),
-  });
-  const j = await r.json().catch(() => null);
-  if (!r.ok) throw new Error(j?.error?.message ?? `The provider answered HTTP ${r.status}.`);
-  return j?.choices?.[0]?.message?.content ?? "";
-}
+import { useChat } from "./chat-state";
+import { PROVIDERS, type ProviderId } from "./chat-model";
+export { askModel, splitReply, systemPrompt } from "./chat-model";
 
 export function Chat() {
-  const { setConnectOpen } = useApp();
+  const { d, setConnectOpen } = useApp();
+  const { connected, chainOk } = useWallet();
+  const sw = useSwitchChain();
   const v = useVault();
-  const saved = (() => {
-    try {
-      return JSON.parse(localStorage.getItem(STORE) ?? "null") as { provider: ProviderId; base: string; model: string; key: string } | null;
-    } catch {
-      return null;
-    }
-  })();
-  const [provider, setProvider] = useState<ProviderId>(saved?.provider ?? "anthropic");
-  const [base, setBase] = useState(saved?.base ?? PROVIDERS.anthropic.base);
-  const [model, setModel] = useState(saved?.model ?? PROVIDERS.anthropic.model);
-  const [key, setKey] = useState(saved?.key ?? "");
-  const [remember, setRemember] = useState(!!saved);
-  const [messages, setMessages] = useState<Msg[]>([]);
-  const [input, setInput] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const [proposals, setProposals] = useState<{ text: string; on: boolean }[]>([]);
-
-  useEffect(() => {
-    if (remember) localStorage.setItem(STORE, JSON.stringify({ provider, base, model, key }));
-    else localStorage.removeItem(STORE);
-  }, [remember, provider, base, model, key]);
-
-  const pick = (id: ProviderId) => {
-    setProvider(id);
-    setBase(PROVIDERS[id].base);
-    setModel(PROVIDERS[id].model);
-  };
-
+  const { provider, base, model, key, remember, pick, setBase, setModel, setKey, setRemember,
+    canLoadKey, loadKey, storageError, messages, input, setInput, busy, err, proposals, setProposals, send } = useChat();
   const memories = v.notes.filter((n) => n.text !== null).map((n) => n.text!);
   const chosen = proposals.filter((p) => p.on && p.text.trim());
   const stamp = v.reads?.stamp;
-
-  const send = async () => {
-    const text = input.trim();
-    if (!text) return;
-    if (!base) return setErr("Enter the address of your model server.");
-    if (!model) return setErr("Enter the model name.");
-    if (PROVIDERS[provider].keyRequired && !key) return setErr(`Enter your ${PROVIDERS[provider].label} API key.`);
-    setErr("");
-    const next = [...messages, { role: "user" as const, content: text }];
-    setMessages(next);
-    setInput("");
-    setBusy(true);
-    try {
-      const out = await askModel({ provider, base, model, key, system: systemPrompt(memories), messages: next });
-      const { reply, proposals: p } = splitReply(out);
-      setMessages([...next, { role: "assistant", content: reply || "(empty reply)" }]);
-      setProposals(p.map((t) => ({ text: t, on: true })));
-    } catch (e) {
-      setErr(`Unable to reach the model: ${e instanceof Error ? e.message : String(e)} Check the address, model and key.`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
+  const opening = v.status === "signing" || v.status === "loading";
   return (
     <div className="chat-grid">
       <section className="panel" aria-labelledby="chat-title">
@@ -155,6 +41,7 @@ export function Chat() {
             <div className="stack wide">
               <label htmlFor="base">{provider === "local" ? "Your model server's address (OpenAI-compatible API)" : "Endpoint base URL (ends before /chat/completions)"}</label>
               <input id="base" type="url" value={base} onChange={(e) => setBase(e.target.value.trim())} autoComplete="off" spellCheck={false} />
+              <p className="hint">Your server must allow browser requests from this site's origin.</p>
             </div>
           )}
           <div className="stack wide">
@@ -164,11 +51,13 @@ export function Chat() {
               <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
               Remember on this device
             </label>
-            <p className="hint">Without it, the key lives in this tab's memory only. Requests go from your browser straight to the provider.</p>
+            <p className="hint">Keys stay in this tab unless remembered. Saved keys belong to a provider and origin. Changing provider or endpoint clears the active key.</p>
+            {canLoadKey && <button className="btn btn-sm" type="button" onClick={loadKey}>Use saved key for this origin</button>}
+            {storageError && <p className="note-err" role="alert">{storageError}</p>}
           </div>
         </div>
 
-        <ol className="convo" aria-label="Conversation">
+        <ol className="convo" aria-label="Conversation" aria-live="polite" aria-relevant="additions">
           {messages.length === 0 && <li className="hint">Ask anything. Your open vault's notes are sent to the model as context.</li>}
           {messages.map((m, i) => (
             <li key={i} className={`msg msg-${m.role}`}>
@@ -191,7 +80,7 @@ export function Chat() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
             }}
           />
           <div className="form-foot">
@@ -233,20 +122,20 @@ export function Chat() {
                 </p>
                 <button
                   className="btn btn-primary"
-                  disabled={chosen.length === 0}
+                  disabled={chosen.length === 0 || v.sealing || !chainOk}
                   onClick={async () => {
                     if (await v.seal(chosen.map((c) => c.text))) setProposals([]);
                   }}
                 >
-                  Seal {chosen.length} note{chosen.length === 1 ? "" : "s"}
+                  {v.sealing ? "Sealing notes…" : `Seal ${chosen.length} note${chosen.length === 1 ? "" : "s"}`}
                 </button>
-                <TxStatus state={v.tx.state} />
               </>
             ) : (
-              <p className="hint">Open your vault on the home page to seal these.</p>
+              <p className="hint">Open your vault in the “What MNEMO remembers” panel to seal these notes here.</p>
             )}
           </div>
         )}
+        <TxStatus state={v.tx.state} />
       </section>
 
       <aside className="panel side" aria-labelledby="mem-title">
@@ -254,9 +143,15 @@ export function Chat() {
         {v.status !== "open" ? (
           <>
             <p className="hint">Your vault is closed. Open it to load your notes into the chat.</p>
-            <a className="btn" href="#/" onClick={() => setConnectOpen(false)}>
-              Go to your vault
-            </a>
+            <button className="btn" disabled={opening || sw.busy} onClick={() => {
+              if (!connected) setConnectOpen(true);
+              else if (!chainOk) sw.run();
+              else v.open();
+            }}>
+              {!connected ? "Connect to open your vault" : !chainOk ? `Switch to ${d.chain.name}` : v.status === "signing" ? "Sign in your wallet…" : v.status === "loading" ? "Reading your notes…" : "Open your vault"}
+            </button>
+            <p className="hint">One signature. Your conversation stays here.</p>
+            {(v.error || sw.error) && <p className="note-err" role="alert">{v.error || sw.error}</p>}
           </>
         ) : memories.length === 0 ? (
           <p className="hint">Nothing yet. Approve a proposal after a reply to seal your first note.</p>

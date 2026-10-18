@@ -1,0 +1,224 @@
+CHROMIUM — production export under /site/, mocked wallet/RPC/model
+PASS home renders the tagline
+PASS main action is on the first screen at 390x844 (bottom 389px)
+PASS network totals read from the vault (notesTotal 5, burned 10,000)
+PASS no horizontal scroll at 390 (scrollWidth 390)
+PASS Open your vault while disconnected opens the connect sheet
+PASS sheet lists the EIP-6963 wallet by name
+PASS sheet lists Coinbase Wallet
+PASS generic 'Injected' row hidden
+PASS Escape closes the sheet
+PASS wrong chain shows a single Switch to Ethereum control in the header and hero
+PASS unknown chain (4902) falls back to wallet_addEthereumChain with network.json's walletAddChain
+PASS then switches again
+PASS a rejected signature shows a plain message and the vault stays closed
+PASS one signature opens the vault
+PASS sealing asks for the MNEMO approval first, then write
+PASS write() carries ciphertext that only the owner's derived key opens, at the current epoch
+PASS no plaintext in the transaction
+PASS quote from the network block's quoter is shown with slippage minimum
+PASS buy approves IMD to Permit2, then Permit2 to the router, then executes
+PASS swap sends no ETH value for an IMD pair
+PASS execute uses V4_SWAP
+PASS chat reply shown and a memory proposed
+PASS key kept in memory only by default
+PASS agents page has register, grant, write-for and docs
+PASS no horizontal scroll at 320 on #/ (scrollWidth 320)
+PASS no horizontal scroll at 320 on #/chat (scrollWidth 320)
+PASS no horizontal scroll at 320 on #/agents (scrollWidth 320)
+PASS no horizontal scroll at 320 on #/trade (scrollWidth 320)
+PASS no horizontal scroll at 1440 on #/ (scrollWidth 1440)
+PASS no horizontal scroll at 1440 on #/chat (scrollWidth 1440)
+PASS no horizontal scroll at 1440 on #/agents (scrollWidth 1440)
+PASS no horizontal scroll at 1440 on #/trade (scrollWidth 1440)
+PASS no script errors
+33/33 passed
+
+PASS home story has the requested section order
+PASS product and main action fit the first 390px screen
+PASS sample decrypts locally into real words
+PASS sample requires no wallet or transaction
+PASS automated accessibility audit on unsealed-sample
+PASS copy button copies the exact 40-line downloadable agent script
+PASS footer copies the verified contract address
+PASS questions expand with useful answers
+PASS wallet dialog traps forward keyboard focus
+PASS wallet dialog traps backward keyboard focus
+PASS wallet dialog restores focus to the connect trigger
+PASS bug 1: conversation survives route navigation
+PASS bug 1: unsent draft survives navigation
+PASS bug 1: edited proposal and its selection survive navigation
+PASS bug 1: unremembered API key survives navigation in memory
+PASS bug 1: vault opens in chat with exactly one signature
+PASS bug 1: opening the vault preserves the draft and proposals
+PASS bug 4: one approval after repeated same-tick submissions
+PASS bug 4: Seal is disabled during the approval receipt
+PASS bug 4: Seal stays disabled through the write receipt
+PASS bug 4: only one write is sent for the click
+PASS bug 3: changing input immediately clears the previous minimum
+PASS bug 3: a late old success cannot overwrite the current minimum
+PASS bug 3: a stale failed request cannot replace current quote state
+PASS bug 3: changing buy/sell rejects the previous direction's response
+PASS bug 3: clearing the amount immediately removes the minimum
+PASS bug 4: chat Seal disables during approval
+PASS bug 4: the seal lock survives navigation and disables the other Seal
+PASS bug 4: chat Seal remains disabled until the write receipt
+PASS bug 4: failed receipt is reported as a transaction failure (Seal 1 note: Transaction failed. Check your wallet and try again.)
+PASS bug 4: a failed receipt re-enables Seal and preserves proposals
+PASS bug 4: navigating and submitting while pending sends no duplicate
+PASS bug 4: retry confirms and only then clears proposals
+PASS bug 1: replies and proposals received away from chat are retained
+PASS bug 2: changing provider clears the active key
+PASS bug 2: a required missing key prevents a request to another provider
+PASS bug 2: the new provider receives only its own key
+PASS bug 2: changing endpoint origin clears the key
+PASS bug 2: the old origin's key never reaches the new origin
+PASS bug 2: remembered keys are stored separately per provider and origin
+PASS bug 2: returning to a saved origin still clears the active key
+PASS bug 2: explicit restore loads only the matching origin's key
+PASS bug 2: changing a path on the same origin also clears the active key
+PASS bug 2: two provider modes on one origin do not inherit each other's key
+PASS bug 2: reload restores only the remembered provider's own key
+PASS conversation and proposals are tab-memory only, never persisted to storage
+PASS bug 2: opting out removes every saved provider key
+PASS bug 5: skip link focuses main on Vault without changing the hash
+PASS bug 5: skip link focuses main on Chat without changing the hash
+PASS bug 5: skip link focuses main on Agents without changing the hash
+PASS bug 5: skip link focuses main on Trade without changing the hash
+PASS no horizontal scroll at 320px on Vault
+PASS no horizontal scroll at 320px on Chat
+PASS no horizontal scroll at 320px on Agents
+PASS no horizontal scroll at 320px on Trade
+PASS no horizontal scroll at 390px on Vault
+PASS automated accessibility audit on vault
+PASS no horizontal scroll at 390px on Chat
+PASS automated accessibility audit on chat
+PASS no horizontal scroll at 390px on Agents
+PASS automated accessibility audit on agents
+PASS no horizontal scroll at 390px on Trade
+PASS automated accessibility audit on trade
+PASS no horizontal scroll at 500px on Vault
+PASS no horizontal scroll at 500px on Chat
+PASS no horizontal scroll at 500px on Agents
+PASS no horizontal scroll at 500px on Trade
+PASS no horizontal scroll at 1440px on Vault
+PASS no horizontal scroll at 1440px on Chat
+PASS no horizontal scroll at 1440px on Agents
+PASS no horizontal scroll at 1440px on Trade
+PASS reduced motion renders a static capsule
+PASS reduced motion shows sample words without animation
+PASS no script errors in the production export
+74/74 passed (chromium)
+
+
+WEBKIT — production export under /site/, mocked wallet/RPC/model
+PASS home renders the tagline
+PASS main action is on the first screen at 390x844 (bottom 389px)
+PASS network totals read from the vault (notesTotal 5, burned 10,000)
+PASS no horizontal scroll at 390 (scrollWidth 390)
+PASS Open your vault while disconnected opens the connect sheet
+PASS sheet lists the EIP-6963 wallet by name
+PASS sheet lists Coinbase Wallet
+PASS generic 'Injected' row hidden
+PASS Escape closes the sheet
+PASS wrong chain shows a single Switch to Ethereum control in the header and hero
+PASS unknown chain (4902) falls back to wallet_addEthereumChain with network.json's walletAddChain
+PASS then switches again
+PASS a rejected signature shows a plain message and the vault stays closed
+PASS one signature opens the vault
+PASS sealing asks for the MNEMO approval first, then write
+PASS write() carries ciphertext that only the owner's derived key opens, at the current epoch
+PASS no plaintext in the transaction
+PASS quote from the network block's quoter is shown with slippage minimum
+PASS buy approves IMD to Permit2, then Permit2 to the router, then executes
+PASS swap sends no ETH value for an IMD pair
+PASS execute uses V4_SWAP
+PASS chat reply shown and a memory proposed
+PASS key kept in memory only by default
+PASS agents page has register, grant, write-for and docs
+PASS no horizontal scroll at 320 on #/ (scrollWidth 320)
+PASS no horizontal scroll at 320 on #/chat (scrollWidth 320)
+PASS no horizontal scroll at 320 on #/agents (scrollWidth 320)
+PASS no horizontal scroll at 320 on #/trade (scrollWidth 320)
+PASS no horizontal scroll at 1440 on #/ (scrollWidth 1440)
+PASS no horizontal scroll at 1440 on #/chat (scrollWidth 1440)
+PASS no horizontal scroll at 1440 on #/agents (scrollWidth 1440)
+PASS no horizontal scroll at 1440 on #/trade (scrollWidth 1440)
+PASS no script errors
+33/33 passed
+
+PASS home story has the requested section order
+PASS product and main action fit the first 390px screen
+PASS sample decrypts locally into real words
+PASS sample requires no wallet or transaction
+PASS automated accessibility audit on unsealed-sample
+PASS copy button copies the exact 40-line downloadable agent script
+PASS footer copies the verified contract address
+PASS questions expand with useful answers
+PASS wallet dialog traps forward keyboard focus
+PASS wallet dialog traps backward keyboard focus
+PASS wallet dialog restores focus to the connect trigger
+PASS bug 1: conversation survives route navigation
+PASS bug 1: unsent draft survives navigation
+PASS bug 1: edited proposal and its selection survive navigation
+PASS bug 1: unremembered API key survives navigation in memory
+PASS bug 1: vault opens in chat with exactly one signature
+PASS bug 1: opening the vault preserves the draft and proposals
+PASS bug 4: one approval after repeated same-tick submissions
+PASS bug 4: Seal is disabled during the approval receipt
+PASS bug 4: Seal stays disabled through the write receipt
+PASS bug 4: only one write is sent for the click
+PASS bug 3: changing input immediately clears the previous minimum
+PASS bug 3: a late old success cannot overwrite the current minimum
+PASS bug 3: a stale failed request cannot replace current quote state
+PASS bug 3: changing buy/sell rejects the previous direction's response
+PASS bug 3: clearing the amount immediately removes the minimum
+PASS bug 4: chat Seal disables during approval
+PASS bug 4: the seal lock survives navigation and disables the other Seal
+PASS bug 4: chat Seal remains disabled until the write receipt
+PASS bug 4: failed receipt is reported as a transaction failure (Seal 1 note: Transaction failed. Check your wallet and try again.)
+PASS bug 4: a failed receipt re-enables Seal and preserves proposals
+PASS bug 4: navigating and submitting while pending sends no duplicate
+PASS bug 4: retry confirms and only then clears proposals
+PASS bug 1: replies and proposals received away from chat are retained
+PASS bug 2: changing provider clears the active key
+PASS bug 2: a required missing key prevents a request to another provider
+PASS bug 2: the new provider receives only its own key
+PASS bug 2: changing endpoint origin clears the key
+PASS bug 2: the old origin's key never reaches the new origin
+PASS bug 2: remembered keys are stored separately per provider and origin
+PASS bug 2: returning to a saved origin still clears the active key
+PASS bug 2: explicit restore loads only the matching origin's key
+PASS bug 2: changing a path on the same origin also clears the active key
+PASS bug 2: two provider modes on one origin do not inherit each other's key
+PASS bug 2: reload restores only the remembered provider's own key
+PASS conversation and proposals are tab-memory only, never persisted to storage
+PASS bug 2: opting out removes every saved provider key
+PASS bug 5: skip link focuses main on Vault without changing the hash
+PASS bug 5: skip link focuses main on Chat without changing the hash
+PASS bug 5: skip link focuses main on Agents without changing the hash
+PASS bug 5: skip link focuses main on Trade without changing the hash
+PASS no horizontal scroll at 320px on Vault
+PASS no horizontal scroll at 320px on Chat
+PASS no horizontal scroll at 320px on Agents
+PASS no horizontal scroll at 320px on Trade
+PASS no horizontal scroll at 390px on Vault
+PASS automated accessibility audit on vault
+PASS no horizontal scroll at 390px on Chat
+PASS automated accessibility audit on chat
+PASS no horizontal scroll at 390px on Agents
+PASS automated accessibility audit on agents
+PASS no horizontal scroll at 390px on Trade
+PASS automated accessibility audit on trade
+PASS no horizontal scroll at 500px on Vault
+PASS no horizontal scroll at 500px on Chat
+PASS no horizontal scroll at 500px on Agents
+PASS no horizontal scroll at 500px on Trade
+PASS no horizontal scroll at 1440px on Vault
+PASS no horizontal scroll at 1440px on Chat
+PASS no horizontal scroll at 1440px on Agents
+PASS no horizontal scroll at 1440px on Trade
+PASS reduced motion renders a static capsule
+PASS reduced motion shows sample words without animation
+PASS no script errors in the production export
+74/74 passed (webkit)

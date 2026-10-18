@@ -96,7 +96,8 @@ export function useTx() {
         bump();
         return true;
       } catch (e) {
-        setState({ kind: "error", text: `${label}: ${reason(e)}` });
+        const message = reason(e);
+        setState({ kind: "error", text: `${label}: ${message === "unknown reason" ? "Transaction failed. Check your wallet and try again." : message}` });
         return false;
       }
     },

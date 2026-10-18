@@ -1,6 +1,67 @@
-# MNEMO contracts
+# MNEMO
 
 "Your AI's memory, sealed on chain."
+
+
+MNEMO's web app is in `web/`; the complete production export is in repository-root `dist/`. It connects to the existing Ethereum deployment. No contracts, ABIs, addresses, routes or encryption formats changed in this revision.
+
+## Install, run and rebuild the website
+
+Use Node 22 or newer and npm. The checked-in frontend lockfile reproduces the existing dependencies.
+
+```sh
+cd web
+npm ci
+npm run dev
+```
+
+For the production export and a local preview:
+
+```sh
+cd web
+npm run typecheck
+npm test
+npm run build
+npx vite preview --host 127.0.0.1
+```
+
+If already in `web/`, omit the second `cd web`. Vite writes `../dist/`, uses `base: "./"` and hash routing, and `scripts/manifest.mjs` verifies the ABI hashes and hashes every runtime asset. The export works from a gateway subpath with no server rewrites. Keep `dist/index.html`, its hashed assets, local fonts, ABI files, metadata images, `llms.txt`, agent script and deployment manifest together when publishing.
+
+The hosting target remains **mnemo.site.identitymd.eth**. `dist/` is the publication artifact; hosting does not need to install dependencies or rebuild. To check a hosted copy against these exact bytes:
+
+```sh
+node web/scripts/verify-published.mjs https://mnemo.site.identitymd.eth.limo/
+```
+
+This fetches the manifest and every runtime file, then compares SHA-256 hashes with the local build. It exits nonzero for a different release, unavailable host or mismatched asset. Local checks do not establish that the named site has been republished. This run’s publisher returned “not configured,” so the live update could not be completed or confirmed; details are recorded in [validation](docs/review/validation.md).
+
+## Interaction checks
+
+`npm run e2e` inside `web/` runs both the original browser flows and `tests/regressions.mjs` against the actual `dist/` export under a `/site/` subpath. It requires Playwright and its browser binaries. It uses mocked EIP-6963 wallets, JSON-RPC and model responses; no paid API is called and no transaction is broadcast.
+
+Playwright can be installed outside the repository so no package or lockfile changes are needed:
+
+```sh
+npm install --prefix /tmp/mnemo-checks playwright @axe-core/playwright
+PLAYWRIGHT_BROWSERS_PATH=/tmp/mnemo-check-browsers node /tmp/mnemo-checks/node_modules/playwright/cli.js install chromium webkit
+PLAYWRIGHT_BROWSERS_PATH=/tmp/mnemo-check-browsers IMD_PLAYWRIGHT=/tmp/mnemo-checks/node_modules/playwright/index.mjs MNEMO_AXE=/tmp/mnemo-checks/node_modules/@axe-core/playwright/dist/index.mjs npm --prefix web run e2e
+```
+
+Run those commands from the repository root. On a system with browser libraries installed, add `MNEMO_BROWSER=webkit` to run the same flows in WebKit. `MNEMO_AXE` is optional and adds five WCAG A/AA scans. The scripts manage a bounded local server and browser, then close them; screenshots and reports go to `test/scratch/` and are not submission assets.
+
+The regression checks cover retained conversation/draft/proposals/key, replies received while away, opening a vault within Chat, credential isolation and opt-out, reversed quote responses and stale failures, repeated Seal submissions, approval/write receipt locks, failed receipt and retry, hash-safe keyboard skipping, local unsealing, copying, FAQ disclosure, reduced motion and all four routes at 320/390/500/1440px.
+
+Final commands, counts, limitations and review coverage are in [docs/review/validation.md](docs/review/validation.md). The implemented tokens, components and responsive behavior are documented in [DESIGN.md](DESIGN.md).
+
+Local validation: production build and typecheck passed; 9 unit tests and 103 contract tests passed; Chromium and WebKit each passed 33 original plus 74 regression/accessibility checks. All routes were checked at 320, 390, 500 and 1440px. The design probe passed 15/16 checks, retaining the established monospaced prose. The live publisher is not configured, so no hosted update is claimed.
+
+## Chat privacy and keys
+
+Conversations, drafts, proposed notes and unremembered API keys survive navigation in this tab. They are not persisted on reload. Changing provider or endpoint clears the active key immediately. When Remember on this device is enabled, keys are saved separately for each origin and provider; after changing settings, use the explicit matching-key restore control. Turning the setting off removes all saved provider credentials. Legacy unscoped credentials are cleared instead of reused.
+
+Requests go directly to the chosen provider, which receives the conversation and opened vault context. Local/compatible model servers must permit browser requests from the site's origin. The sample note runs entirely locally. Sealing a real note requires an EOA wallet, the current MNEMO stamp and Ethereum gas.
+
+## Contracts
 
 Two contracts, built with Foundry for Ethereum mainnet (chain id 1):
 
@@ -166,7 +227,7 @@ burn the stamp for ciphertext sealed under a stale key.
 
 ## Tests
 
-`forge test` runs 67 tests across three suites:
+`forge test` currently runs 103 tests across six suites. The core suites are:
 
 - `test/LaunchToken.t.sol`: metadata, whole supply to the deployer, exact transfers, allowance, no mint, a
   conservation fuzz.
@@ -181,6 +242,8 @@ burn the stamp for ciphertext sealed under a stale key.
 - `test/MnemoVault.invariant.t.sol`: a handler drives four actors through every function; invariants hold
   that `burnedTotal()` equals the dead address balance and the handler's ghost total, the vault holds nothing,
   `notesTotal()` matches the ghost count, epochs match, supply is conserved and the owner never changes.
+
+The additional suites are `test/LaunchToken.edges.t.sol`, `test/MnemoVault.adversarial.t.sol` and `test/MnemoVault.stateful.t.sol`, covering token edges, adversarial vault calls and model/stateful sequences. The latest local run passed all 103 tests.
 
 Tests passing are not a security audit. The vault burns user funds on their instruction and holds none, but an
 independent adversarial review is still part of this stage before launch. Slither and Mythril were not run

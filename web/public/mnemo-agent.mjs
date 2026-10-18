@@ -1,6 +1,9 @@
 // mnemo-agent.mjs: read and write a MNEMO vault that granted this agent. Node 22 with:
 //   npm i viem @noble/hashes @noble/ciphers @noble/curves
 // AGENT_KEY=0x<agent wallet private key> node mnemo-agent.mjs <site url> <owner address> ["note to write"]
+// Run once to register the agent, then ask the vault owner to grant its wallet.
+// The grant seals the current epoch key to this agent; no vault secret is configured here.
+// Writing approves exactly the current stamp. The agent pays its own MNEMO and gas.
 import { createPublicClient, createWalletClient, http, parseAbi, parseAbiItem, hexToBytes, bytesToHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { hkdf } from "@noble/hashes/hkdf.js";

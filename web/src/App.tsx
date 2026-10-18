@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConnectSheet } from "./ConnectSheet";
 import { Faq, Hero, Numbers, OwnerPanel, VaultPanel } from "./Home";
 import { Chat } from "./Chat";
 import { Agents } from "./Agents";
 import { Trade } from "./Trade";
+import { AnyModel, ChainBoundary, Footer, ForAgents, HowItWorks, SampleNote } from "./Story";
 
 const ROUTES = [
   { hash: "#/", label: "Vault" },
@@ -29,9 +30,14 @@ function useRoute() {
 
 export function App() {
   const route = useRoute();
+  const main = useRef<HTMLElement>(null);
   return (
     <>
-      <a className="skip" href="#main">
+      <a className="skip" href={route} onClick={(e) => {
+        e.preventDefault();
+        main.current?.focus({ preventScroll: true });
+        main.current?.scrollIntoView({ block: "start", behavior: "instant" });
+      }}>
         Skip to content
       </a>
       <header className="top">
@@ -47,13 +53,18 @@ export function App() {
         </nav>
         <ConnectSheet />
       </header>
-      <main id="main" tabIndex={-1}>
+      <main ref={main} id="main" tabIndex={-1}>
         {route === "#/" && (
           <>
             <Hero />
             <VaultPanel />
-            <Numbers />
             <OwnerPanel />
+            <HowItWorks />
+            <SampleNote />
+            <AnyModel />
+            <ChainBoundary />
+            <ForAgents />
+            <Numbers />
             <Faq />
           </>
         )}
@@ -61,11 +72,7 @@ export function App() {
         {route === "#/agents" && <Agents />}
         {route === "#/trade" && <Trade />}
       </main>
-      <footer className="foot">
-        <p>
-          No backend, no analytics. <a href="./llms.txt">llms.txt</a>
-        </p>
-      </footer>
+      <Footer />
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatUnits, parseUnits, type Address } from "viem";
 import { useApp, useTx, useWallet } from "./context";
 import { fmt } from "./vault";
@@ -14,7 +14,8 @@ export function Trade() {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
   const [slip, setSlip] = useState("1");
-  const [quote, setQuote] = useState<{ out: bigint; for: string } | null>(null);
+  const [quoted, setQuote] = useState<{ out: bigint; for: string } | null>(null);
+  const quoteRequest = useRef(0);
   const [quoteErr, setQuoteErr] = useState("");
   const [bal, setBal] = useState<{ mnemo: bigint; pair: bigint } | null>(null);
 
@@ -45,6 +46,8 @@ export function Trade() {
   }
 
   useEffect(() => {
+    const request = ++quoteRequest.current;
+    let live = true;
     setQuote(null);
     setQuoteErr("");
     if (!ready || amountIn <= 0n) return;
@@ -56,14 +59,16 @@ export function Trade() {
           functionName: "quoteExactInputSingle",
           args: [{ poolKey: key!, zeroForOne, exactAmount: amountIn, hookData: "0x" }],
         });
-        setQuote({ out: result[0], for: `${side}:${amountIn}` });
+        if (live && request === quoteRequest.current) setQuote({ out: result[0], for: `${side}:${amountIn}` });
       } catch {
-        setQuoteErr("No quote: the pool could not price this amount. Try a smaller one.");
+        if (live && request === quoteRequest.current) setQuoteErr("No quote: the pool could not price this amount. Try a smaller one.");
       }
     }, 350);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, amount, side, client]);
+    return () => { live = false; clearTimeout(id); };
+  }, [ready, amountIn, side, client, key, uni, zeroForOne]);
+
+  // Guard the render before the effect runs too: a quote only applies to its exact input.
+  const quote = quoted?.for === `${side}:${amountIn}` ? quoted : null;
 
   if (!ready) {
     return (
