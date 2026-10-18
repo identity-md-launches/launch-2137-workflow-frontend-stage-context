@@ -1,0 +1,46 @@
+# MNEMO
+
+> Your AI's memory, sealed on chain. Notes are encrypted in the browser with a key only the owner's
+> wallet can derive, stored on Ethereum as ciphertext in MnemoVault events, and loaded into any model.
+
+Addresses, chain, ABIs and public RPCs: ./imd-deployment.json (contracts "MnemoVault" and
+"LaunchToken", ABIs at the listed abiPath). Every note sealed burns the vault's current `stamp()` in
+MNEMO (2,000 at launch), pulled from the writer with transferFrom, so approve the vault first.
+
+## Contract (MnemoVault)
+- write(bytes[] notes, uint32 epoch): seal 1 to 16 notes, each 1 to 2,048 bytes, into your own vault.
+  `epoch` must equal epochOf(you).
+- writeFor(address owner, bytes[] notes, uint32 epoch): the same, as an agent the owner granted;
+  the agent pays the stamp. `epoch` must equal epochOf(owner).
+- forget(uint256[] ids), rotate(), grant(address agent, bytes sealedKey), revoke(address agent)
+  (revoke also rotates the owner's epoch), register(bytes32 x25519PublicKey).
+- Views: epochOf, isGranted, keyOf, noteOwnerOf, stamp, notesTotal, burnedTotal.
+- Events: Noted(owner, id, epoch, ciphertext), Forgotten(owner, id), Rotated(owner, epoch),
+  Granted(owner, agent, epoch, sealedKey), Revoked(owner, agent), KeyRegistered(account, key).
+
+## Keys and ciphertext
+All HKDF is HKDF-SHA256 with 32-byte output. Signatures are EIP-191 personal_sign by an EOA
+(deterministic RFC 6979); the address in each message is the EIP-55 checksummed address.
+
+- Vault key for epoch e: HKDF(ikm = signature bytes of "MNEMO vault key v1 for {address}",
+  salt = "MNEMO", info = "vault:{e}").
+- Note: 0x01 | nonce (24 random bytes) | XChaCha20-Poly1305(vault key, nonce, UTF-8 text).
+  Plaintext is at most 2,007 bytes so the note fits 2,048.
+- Agent secret (x25519): HKDF(ikm = signature bytes of "MNEMO agent key v1 for {address}",
+  salt = "MNEMO", info = "agent"). register() publishes its x25519 public key.
+- Sealed key in grant(): 0x01 | ephemeral x25519 public key (32) | nonce (24) |
+  XChaCha20-Poly1305(K, nonce, vault key for the owner's current epoch), where
+  K = HKDF(ikm = x25519(ephemeral secret, agent public), salt = ephemeral public | agent public,
+  info = "MNEMO grant v1").
+
+## Reading a vault as an agent
+1. Find the latest Granted(owner, you) whose epoch equals epochOf(owner); open sealedKey.
+2. Read Noted(owner) logs from the vault's deployment block, skip ids in Forgotten(owner), and
+   decrypt those whose epoch matches. Notes from other epochs need that epoch's key.
+3. To write, approve the vault for the stamp, seal with the same key and call writeFor.
+
+A 37-line Node script that does all of this: ./mnemo-agent.mjs
+
+## Privacy
+The site has no backend and no analytics. Chat requests go from the browser straight to the provider
+the user picks. Nothing about other wallets is listed; the site shows network totals only.
